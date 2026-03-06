@@ -172,7 +172,10 @@
         </label>
       </div>
 
-      <button id="calcB2C" class="btn">Calcular B2C</button>
+      <div class="actions-row">
+        <button id="calcB2C" class="btn">Calcular B2C</button>
+        <button id="pdfB2C" class="btn secondary">Descargar PDF B2C</button>
+      </div>
 
       <div id="outB2C" class="results"></div>
     </section>
@@ -290,7 +293,10 @@
         </label>
       </div>
 
-      <button id="calcB2B" class="btn">Calcular B2B</button>
+      <div class="actions-row">
+        <button id="calcB2B" class="btn">Calcular B2B</button>
+        <button id="pdfB2B" class="btn secondary">Descargar PDF B2B</button>
+      </div>
 
       <div id="outB2B" class="results"></div>
     </section>
@@ -303,6 +309,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

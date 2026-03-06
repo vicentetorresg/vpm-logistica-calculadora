@@ -318,6 +318,28 @@ input:focus, select:focus {
 
 .b2b .btn { background: linear-gradient(135deg, #5b21b6, #7c3aed); }
 
+.actions-row {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actions-row .btn {
+  margin-top: 0;
+}
+
+.btn.secondary {
+  background: #ffffff;
+  color: #17406d;
+  border: 1px solid #b6cae1;
+}
+
+.b2b .btn.secondary {
+  color: #4d2a95;
+  border-color: #cfbdf2;
+}
+
 .results {
   margin-top: 12px;
   border: 1px dashed #bfd0e2;
