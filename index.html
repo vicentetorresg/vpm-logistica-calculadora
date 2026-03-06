@@ -92,27 +92,29 @@
               <input id="b2cVecesIngreso" type="number" step="1" min="1" value="1" />
             </label>
           </div>
-          <small><strong>Adicionales opcionales</strong> (solo si mezclas tipos en el mismo ingreso):</small>
-          <div class="inline-2">
-            <label>
-              Pallet suelto adicional (cantidad)
-              <input id="b2cExtraPalletSuelto" type="number" step="1" min="0" value="0" />
-            </label>
-            <label>
-              Bultos sueltos adicionales (cantidad)
-              <input id="b2cExtraBultosSuelto" type="number" step="1" min="0" value="0" />
-            </label>
-          </div>
-          <div class="inline-2">
-            <label>
-              Carga sobredimensionada adicional (toneladas)
-              <input id="b2cExtraTonSobredim" type="number" step="0.01" min="0" value="0" />
-            </label>
-            <label>
-              Modo unitario adicional (artículos)
-              <input id="b2cExtraArticulosUnitario" type="number" step="1" min="0" value="0" />
-            </label>
-          </div>
+          <details class="extras-collapse">
+            <summary>Adicionales opcionales (mezcla de tipos)</summary>
+            <div class="inline-2">
+              <label>
+                Pallet suelto adicional (cantidad)
+                <input id="b2cExtraPalletSuelto" type="number" step="1" min="0" value="0" />
+              </label>
+              <label>
+                Bultos sueltos adicionales (cantidad)
+                <input id="b2cExtraBultosSuelto" type="number" step="1" min="0" value="0" />
+              </label>
+            </div>
+            <div class="inline-2">
+              <label>
+                Carga sobredimensionada adicional (toneladas)
+                <input id="b2cExtraTonSobredim" type="number" step="0.01" min="0" value="0" />
+              </label>
+              <label>
+                Modo unitario adicional (artículos)
+                <input id="b2cExtraArticulosUnitario" type="number" step="1" min="0" value="0" />
+              </label>
+            </div>
+          </details>
           <small>Siempre se suma Servicio de Recepción: <strong>0,32 UF por ingreso</strong>.</small>
         </fieldset>
 
@@ -219,27 +221,29 @@
               <input id="b2bVecesIngreso" type="number" step="1" min="1" value="1" />
             </label>
           </div>
-          <small><strong>Adicionales opcionales</strong> (solo si mezclas tipos en el mismo ingreso):</small>
-          <div class="inline-2">
-            <label>
-              Pallet suelto adicional (cantidad)
-              <input id="b2bExtraPalletSuelto" type="number" step="1" min="0" value="0" />
-            </label>
-            <label>
-              Bultos sueltos adicionales (cantidad)
-              <input id="b2bExtraBultosSuelto" type="number" step="1" min="0" value="0" />
-            </label>
-          </div>
-          <div class="inline-2">
-            <label>
-              Carga sobredimensionada adicional (toneladas)
-              <input id="b2bExtraTonSobredim" type="number" step="0.01" min="0" value="0" />
-            </label>
-            <label>
-              Modo unitario adicional (artículos)
-              <input id="b2bExtraArticulosUnitario" type="number" step="1" min="0" value="0" />
-            </label>
-          </div>
+          <details class="extras-collapse">
+            <summary>Adicionales opcionales (mezcla de tipos)</summary>
+            <div class="inline-2">
+              <label>
+                Pallet suelto adicional (cantidad)
+                <input id="b2bExtraPalletSuelto" type="number" step="1" min="0" value="0" />
+              </label>
+              <label>
+                Bultos sueltos adicionales (cantidad)
+                <input id="b2bExtraBultosSuelto" type="number" step="1" min="0" value="0" />
+              </label>
+            </div>
+            <div class="inline-2">
+              <label>
+                Carga sobredimensionada adicional (toneladas)
+                <input id="b2bExtraTonSobredim" type="number" step="0.01" min="0" value="0" />
+              </label>
+              <label>
+                Modo unitario adicional (artículos)
+                <input id="b2bExtraArticulosUnitario" type="number" step="1" min="0" value="0" />
+              </label>
+            </div>
+          </details>
           <small>Siempre se suma Servicio de Recepción: <strong>0,32 UF por ingreso</strong>.</small>
         </fieldset>
 
