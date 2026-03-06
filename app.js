@@ -168,15 +168,137 @@ function updateIngresoContext(prefix) {
   if (Number(input.value) < 1) input.value = "1";
 }
 
+function collectInputsForPdf(type) {
+  const ids = type === "b2c"
+    ? [
+      "ufValue", "rollosPorCaja", "b2cPeriodo", "b2cVentaRollos", "b2cIngresoTipo", "b2cCantidadIngreso",
+      "b2cVecesIngreso", "b2cExtraPalletSuelto", "b2cExtraBultosSuelto", "b2cExtraTonSobredim",
+      "b2cExtraArticulosUnitario", "b2cPosicionesPallet", "b2cPickupVecesMes", "b2cPrecioBruto",
+      "b2cComisionMeli", "b2cPublicidad", "b2cEnvio", "b2cEnvioPagaCliente", "b2cCompra"
+    ]
+    : [
+      "ufValue", "rollosPorCaja", "b2bCajasPedido", "b2bPedidosMes", "b2bIngresoTipo", "b2bCantidadIngreso",
+      "b2bVecesIngreso", "b2bExtraPalletSuelto", "b2bExtraBultosSuelto", "b2bExtraTonSobredim",
+      "b2bExtraArticulosUnitario", "b2bPosicionesPallet", "b2bPrecioBruto", "b2bComisionCanal",
+      "b2bPublicidad", "b2bEnvio", "b2bEnvioPagaCliente", "b2bCompra"
+    ];
+
+  return ids.map((id) => {
+    const el = $(id);
+    if (!el) return null;
+    const labelEl = el.closest("label");
+    let label = id;
+    if (labelEl) {
+      const text = labelEl.textContent.replace(/\s+/g, " ").trim();
+      label = text.replace(/\$|%/g, "").trim();
+    }
+    let value = "";
+    if (el.tagName === "SELECT") value = el.options[el.selectedIndex]?.text || "";
+    else if (el.type === "checkbox") value = el.checked ? "Sí" : "No";
+    else value = el.value;
+    return { label, value };
+  }).filter(Boolean);
+}
+
+function collectRowsForPdf(outId) {
+  const out = $(outId);
+  const rows = [];
+  out.querySelectorAll("table.breakdown tr").forEach((tr) => {
+    const cols = [...tr.querySelectorAll("th,td")].map((c) => c.textContent.replace(/\s+/g, " ").trim());
+    if (cols.length > 0) rows.push(cols.join(" | "));
+  });
+  return rows;
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function ensureHtml2Canvas() {
+  if (window.html2canvas) return true;
+  const sources = [
+    "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js",
+    "https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"
+  ];
+  for (const src of sources) {
+    try {
+      await loadScript(src);
+      if (window.html2canvas) return true;
+    } catch (_e) {
+      // try next source
+    }
+  }
+  return false;
+}
+
+function downloadPdfFallback(type) {
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) return;
+
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  let y = margin;
+  const title = type === "b2c" ? "Reporte B2C" : "Reporte B2B";
+  const outId = type === "b2c" ? "outB2C" : "outB2B";
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(`VPM x LogisticPlus - ${title}`, margin, y);
+  y += 20;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Generado: ${new Date().toLocaleString("es-CL")}`, margin, y);
+  y += 16;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Inputs", margin, y);
+  y += 14;
+  doc.setFont("helvetica", "normal");
+  for (const row of collectInputsForPdf(type).map((r) => `${r.label}: ${r.value}`)) {
+    const chunks = doc.splitTextToSize(row, pageW - margin * 2);
+    for (const c of chunks) {
+      if (y > pageH - margin) { doc.addPage(); y = margin; }
+      doc.text(c, margin, y);
+      y += 12;
+    }
+  }
+
+  y += 8;
+  doc.setFont("helvetica", "bold");
+  doc.text("Resultados", margin, y);
+  y += 14;
+  doc.setFont("helvetica", "normal");
+  for (const row of collectRowsForPdf(outId)) {
+    const chunks = doc.splitTextToSize(row, pageW - margin * 2);
+    for (const c of chunks) {
+      if (y > pageH - margin) { doc.addPage(); y = margin; }
+      doc.text(c, margin, y);
+      y += 12;
+    }
+  }
+  doc.save(`reporte-${type}-vpm-logisticplus.pdf`);
+}
+
 async function downloadPdf(type) {
   const { jsPDF } = window.jspdf || {};
-  const html2canvas = window.html2canvas;
-  if (!jsPDF || !html2canvas) return;
+  if (!jsPDF) return;
 
   showCalcModal();
   $("calcModalText").textContent = "Generando PDF...";
 
   try {
+    const hasH2c = await ensureHtml2Canvas();
+    if (!hasH2c) throw new Error("html2canvas no disponible");
+
     if (type === "b2c") renderB2C();
     else renderB2B();
 
@@ -186,7 +308,7 @@ async function downloadPdf(type) {
     const section = $(sectionId);
     if (!section) throw new Error("Sección no encontrada");
 
-    const canvas = await html2canvas(section, {
+    const canvas = await window.html2canvas(section, {
       scale: 2,
       useCORS: true,
       backgroundColor: "#ffffff",
@@ -218,7 +340,8 @@ async function downloadPdf(type) {
     pdf.save(`reporte-${type}-vpm-logisticplus.pdf`);
     $("calcModalText").textContent = "Listo";
   } catch (e) {
-    $("calcModalText").textContent = "No se pudo generar el PDF";
+    downloadPdfFallback(type);
+    $("calcModalText").textContent = "Listo (modo respaldo)";
   } finally {
     setTimeout(() => {
       const modal = $("calcModal");
