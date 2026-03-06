@@ -74,6 +74,44 @@ function formatClpInput(value) {
   return CLP.format(Math.round(n));
 }
 
+function formatDateCL(dateStr) {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("es-CL");
+}
+
+function setUfMeta(text) {
+  const el = $("ufMeta");
+  if (!el) return;
+  el.textContent = text;
+}
+
+async function refreshUfOnline() {
+  const btn = $("refreshUf");
+  if (btn) btn.disabled = true;
+  setUfMeta("Consultando UF en línea...");
+  try {
+    // API pública de indicadores de Chile
+    const res = await fetch("https://mindicador.cl/api/uf");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const serie0 = data?.serie?.[0];
+    const valor = Number(serie0?.valor);
+    const fecha = serie0?.fecha;
+    if (!Number.isFinite(valor) || valor <= 0) throw new Error("UF inválida");
+    $("ufValue").value = formatClpInput(valor);
+    const f = formatDateCL(fecha) || formatDateCL(new Date().toISOString());
+    setUfMeta(`UF en línea al ${f} (fuente: mindicador.cl)`);
+    renderB2C();
+    renderB2B();
+  } catch (err) {
+    const hoy = new Date().toLocaleDateString("es-CL");
+    setUfMeta(`UF manual vigente al ${hoy} (sin conexión a API)`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function recepcionMensualCLP(prefix) {
   const uf = n("ufValue");
   const tarifaUf = n(`${prefix}IngresoTipo`);
@@ -587,10 +625,12 @@ $("b2bIngresoTipo").addEventListener("change", () => {
   updateIngresoContext("b2b");
   renderB2B();
 });
+$("refreshUf").addEventListener("click", refreshUfOnline);
 
 fillExample();
 updateIngresoContext("b2c");
 updateIngresoContext("b2b");
+refreshUfOnline();
 
 function showCalcModal() {
   const modal = $("calcModal");
