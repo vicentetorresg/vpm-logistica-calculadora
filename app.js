@@ -168,120 +168,64 @@ function updateIngresoContext(prefix) {
   if (Number(input.value) < 1) input.value = "1";
 }
 
-function collectInputsForPdf(type) {
-  const ids = type === "b2c"
-    ? [
-      "ufValue", "rollosPorCaja", "b2cPeriodo", "b2cVentaRollos", "b2cIngresoTipo", "b2cCantidadIngreso",
-      "b2cVecesIngreso", "b2cExtraPalletSuelto", "b2cExtraBultosSuelto", "b2cExtraTonSobredim",
-      "b2cExtraArticulosUnitario", "b2cPosicionesPallet", "b2cPickupVecesMes", "b2cPrecioBruto",
-      "b2cComisionMeli", "b2cPublicidad", "b2cEnvio", "b2cEnvioPagaCliente", "b2cCompra"
-    ]
-    : [
-      "ufValue", "rollosPorCaja", "b2bCajasPedido", "b2bPedidosMes", "b2bIngresoTipo", "b2bCantidadIngreso",
-      "b2bVecesIngreso", "b2bExtraPalletSuelto", "b2bExtraBultosSuelto", "b2bExtraTonSobredim",
-      "b2bExtraArticulosUnitario", "b2bPosicionesPallet", "b2bPrecioBruto", "b2bComisionCanal",
-      "b2bPublicidad", "b2bEnvio", "b2bEnvioPagaCliente", "b2bCompra"
-    ];
+async function downloadPdf(type) {
+  const { jsPDF } = window.jspdf || {};
+  const html2canvas = window.html2canvas;
+  if (!jsPDF || !html2canvas) return;
 
-  return ids.map((id) => {
-    const el = $(id);
-    if (!el) return null;
-    const labelEl = el.closest("label");
-    let label = id;
-    if (labelEl) {
-      const text = labelEl.textContent.replace(/\s+/g, " ").trim();
-      label = text.replace(/\$|%/g, "").trim();
+  showCalcModal();
+  $("calcModalText").textContent = "Generando PDF...";
+
+  try {
+    if (type === "b2c") renderB2C();
+    else renderB2B();
+
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    const sectionId = type === "b2c" ? "secB2C" : "secB2B";
+    const section = $(sectionId);
+    if (!section) throw new Error("Sección no encontrada");
+
+    const canvas = await html2canvas(section, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      scrollY: -window.scrollY
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 18;
+    const imgW = pageW - margin * 2;
+    const imgH = (canvas.height * imgW) / canvas.width;
+    const contentHPerPage = pageH - margin * 2;
+
+    let heightLeft = imgH;
+    let position = margin;
+    pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
+    heightLeft -= contentHPerPage;
+
+    while (heightLeft > 0) {
+      pdf.addPage();
+      position = margin - (imgH - heightLeft);
+      pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
+      heightLeft -= contentHPerPage;
     }
-    let value = "";
-    if (el.tagName === "SELECT") value = el.options[el.selectedIndex]?.text || "";
-    else if (el.type === "checkbox") value = el.checked ? "Sí" : "No";
-    else value = el.value;
-    return { label, value };
-  }).filter(Boolean);
-}
 
-function collectRowsForPdf(outId) {
-  const out = $(outId);
-  const rows = [];
-  out.querySelectorAll("table.breakdown tr").forEach((tr) => {
-    const cols = [...tr.querySelectorAll("th,td")].map((c) => c.textContent.replace(/\s+/g, " ").trim());
-    if (cols.length > 0) rows.push(cols.join(" | "));
-  });
-  return rows;
-}
-
-function downloadPdf(type) {
-  const { jsPDF } = window.jspdf;
-  if (!jsPDF) return;
-
-  if (type === "b2c") renderB2C();
-  else renderB2B();
-
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const margin = 40;
-  let y = margin;
-
-  const title = type === "b2c" ? "Reporte Calculadora B2C" : "Reporte Calculadora B2B";
-  const outId = type === "b2c" ? "outB2C" : "outB2B";
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(`VPM x LogisticPlus - ${title}`, margin, y);
-  y += 22;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text(`Generado: ${new Date().toLocaleString("es-CL")}`, margin, y);
-  y += 18;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Inputs utilizados", margin, y);
-  y += 14;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-
-  const inputLines = collectInputsForPdf(type).map((r) => `${r.label}: ${r.value}`);
-  for (const line of inputLines) {
-    const chunks = doc.splitTextToSize(line, pageW - margin * 2);
-    for (const c of chunks) {
-      if (y > pageH - margin) {
-        doc.addPage();
-        y = margin;
-      }
-      doc.text(c, margin, y);
-      y += 12;
-    }
+    pdf.save(`reporte-${type}-vpm-logisticplus.pdf`);
+    $("calcModalText").textContent = "Listo";
+  } catch (e) {
+    $("calcModalText").textContent = "No se pudo generar el PDF";
+  } finally {
+    setTimeout(() => {
+      const modal = $("calcModal");
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+    }, 520);
   }
-
-  y += 8;
-  if (y > pageH - margin) {
-    doc.addPage();
-    y = margin;
-  }
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Resultados", margin, y);
-  y += 14;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-
-  const resultRows = collectRowsForPdf(outId);
-  for (const row of resultRows) {
-    const chunks = doc.splitTextToSize(row, pageW - margin * 2);
-    for (const c of chunks) {
-      if (y > pageH - margin) {
-        doc.addPage();
-        y = margin;
-      }
-      doc.text(c, margin, y);
-      y += 12;
-    }
-  }
-
-  doc.save(`reporte-${type}-vpm-logisticplus.pdf`);
 }
 
 function setCommonDefaults() {
