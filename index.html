@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VPM x LogisticPlus | Calculadora B2C/B2B</title>
+  <meta name="description" content="Calculadora logística y de margen neto para VPM Comercial x LogisticPlus. Simula escenarios B2C y B2B con costos, recepción, comisiones y resultados netos en CLP." />
+  <meta property="og:title" content="VPM x LogisticPlus | Calculadora B2C/B2B" />
+  <meta property="og:description" content="Simula margen neto y costos logísticos B2C/B2B para VPM Comercial con parámetros editables y escenarios de operación." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#0f4c81" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <main class="wrap">
+    <header class="hero">
+      <p class="eyebrow">LogisticPlus</p>
+      <h1>Calculadora de Margen B2C y B2B</h1>
+      <p class="subtitle">Modelo en CLP con costos logísticos, recepción en UF, comisiones y margen neto unitario sobre precio neto.</p>
+      <div class="company-strip">
+        <span><strong>Cliente:</strong> VPM Comercial</span>
+        <span><strong>Operador logístico:</strong> LogisticPlus</span>
+        <span><strong>Versión:</strong> Personalizada para VPM</span>
+      </div>
+      <p class="clarity"><strong>Claridad de datos:</strong> todos los precios solicitados en inputs son <strong>BRUTOS</strong> (con IVA), salvo que se indique explícitamente “neto”.</p>
+      <div class="top-actions">
+        <button id="fillExample" class="ghost">Rellenar datos ejemplo (PDF)</button>
+        <button id="clearB2C" class="ghost">Limpiar B2C</button>
+        <button id="clearB2B" class="ghost">Limpiar B2B</button>
+      </div>
+      <div class="hero-row">
+        <label>
+          UF Referencia
+          <div class="currency-field">
+            <span>$</span>
+            <input id="ufValue" type="text" inputmode="numeric" value="39.808" />
+          </div>
+        </label>
+        <label>
+          Rollos por caja
+          <input id="rollosPorCaja" type="number" step="1" value="6" />
+        </label>
+      </div>
+    </header>
+
+    <section class="card b2c">
+      <div class="card-head">
+        <h2>Calculadora B2C</h2>
+        <span class="tag">Marketplace</span>
+      </div>
+      <div class="mode-row">
+        <label class="mode-select">
+          Período de operación B2C
+          <select id="b2cPeriodo">
+            <option value="first">Primeros 3 meses (LP 7%)</option>
+            <option value="after">Después de 3 meses (LP 10% + pickup)</option>
+            <option value="compare">Comparativo (&lt; 3 meses vs &gt; 3 meses)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid">
+        <label>
+          1) Venta mensual (rollos)
+          <input id="b2cVentaRollos" type="number" step="1" value="720" />
+        </label>
+
+        <fieldset>
+          <legend>2) Tipo de ingreso mensual (selecciona 1)</legend>
+          <select id="b2cIngresoTipo">
+            <option value="5.6">Contenedor 40' HC (5,6 UF)</option>
+            <option value="5.2">Contenedor 40' (5,2 UF)</option>
+            <option value="4.2">Contenedor 20' (4,2 UF)</option>
+            <option value="0.4947">Recepción Carga Sobredimensionada (0,4947 UF por ton)</option>
+            <option value="0.022">Recepción Carga suelta (0,022 UF por bulto)</option>
+            <option value="0.25" selected>Recepción Carga Pallet suelto (0,25 UF por pallet)</option>
+            <option value="0.007256">Recepción modo unitario (0,007256 UF por artículo)</option>
+            <option value="0.099">Pallet In - Paletizado (0,099 UF por pallet)</option>
+          </select>
+          <div class="inline-2">
+            <label>
+              <span id="b2cCantidadIngresoLabel">Cantidad por ingreso</span>
+              <input id="b2cCantidadIngreso" type="number" step="1" min="1" value="1" />
+            </label>
+            <label>
+              Veces que ingresa en el mes
+              <input id="b2cVecesIngreso" type="number" step="1" min="1" value="1" />
+            </label>
+          </div>
+          <small><strong>Adicionales opcionales</strong> (solo si mezclas tipos en el mismo ingreso):</small>
+          <div class="inline-2">
+            <label>
+              Pallet suelto adicional (cantidad)
+              <input id="b2cExtraPalletSuelto" type="number" step="1" min="0" value="0" />
+            </label>
+            <label>
+              Bultos sueltos adicionales (cantidad)
+              <input id="b2cExtraBultosSuelto" type="number" step="1" min="0" value="0" />
+            </label>
+          </div>
+          <div class="inline-2">
+            <label>
+              Carga sobredimensionada adicional (toneladas)
+              <input id="b2cExtraTonSobredim" type="number" step="0.01" min="0" value="0" />
+            </label>
+            <label>
+              Modo unitario adicional (artículos)
+              <input id="b2cExtraArticulosUnitario" type="number" step="1" min="0" value="0" />
+            </label>
+          </div>
+          <small>Siempre se suma Servicio de Recepción: <strong>0,32 UF por ingreso</strong>.</small>
+        </fieldset>
+
+        <label>
+          Posiciones pallet promedio en bodega (mes)
+          <input id="b2cPosicionesPallet" type="number" step="1" min="0" value="2" />
+        </label>
+
+        <label>
+          Pickup mensual desde mes 4 (días / mes)
+          <input id="b2cPickupVecesMes" type="number" step="1" min="0" max="20" value="20" />
+          <small>Tarifa fija: <strong>$4.500 bruto por día</strong> (máximo 20 días/mes; se prorratea por rollo).</small>
+        </label>
+
+        <label>
+          3) Precio venta BRUTO en Meli (CLP / rollo, con IVA)
+          <div class="currency-field">
+            <span>$</span>
+            <input id="b2cPrecioBruto" type="text" inputmode="numeric" value="5.490" />
+          </div>
+        </label>
+
+        <label>
+          4) % comisión Meli (aplicado sobre precio BRUTO)
+          <div class="percent-field">
+            <input id="b2cComisionMeli" type="number" step="0.01" value="0" />
+            <span>%</span>
+          </div>
+        </label>
+
+        <label>
+          5) % publicidad en Meli (sobre ingreso BRUTO)
+          <div class="percent-field">
+            <input id="b2cPublicidad" type="number" step="0.01" value="0" />
+            <span>%</span>
+          </div>
+        </label>
+
+        <label>
+          6) Costo de envío BRUTO unitario (CLP / rollo)
+          <div class="currency-field">
+            <span>$</span>
+            <input id="b2cEnvio" type="text" inputmode="numeric" value="0" />
+          </div>
+          <div class="checkline">
+            <input id="b2cEnvioPagaCliente" type="checkbox" checked />
+            <span>El envío lo paga el cliente (no descontar costo de envío)</span>
+          </div>
+        </label>
+
+        <label>
+          7) Precio de compra BRUTO unitario (CLP / rollo)
+          <div class="currency-field">
+            <span>$</span>
+            <input id="b2cCompra" type="text" inputmode="numeric" value="0" />
+          </div>
+        </label>
+      </div>
+
+      <button id="calcB2C" class="btn">Calcular B2C</button>
+
+      <div id="outB2C" class="results"></div>
+    </section>
+
+    <section class="card b2b">
+      <div class="card-head">
+        <h2>Calculadora B2B</h2>
+        <span class="tag">Mayorista</span>
+      </div>
+
+      <div class="grid">
+        <label>
+          1) Cajas por pedido
+          <input id="b2bCajasPedido" type="number" step="1" min="1" value="2" />
+        </label>
+
+        <label>
+          Pedidos al mes
+          <input id="b2bPedidosMes" type="number" step="1" min="1" value="60" />
+        </label>
+
+        <fieldset>
+          <legend>2) Tipo de ingreso mensual (selecciona 1)</legend>
+          <select id="b2bIngresoTipo">
+            <option value="5.6">Contenedor 40' HC (5,6 UF)</option>
+            <option value="5.2">Contenedor 40' (5,2 UF)</option>
+            <option value="4.2">Contenedor 20' (4,2 UF)</option>
+            <option value="0.4947">Recepción Carga Sobredimensionada (0,4947 UF por ton)</option>
+            <option value="0.022">Recepción Carga suelta (0,022 UF por bulto)</option>
+            <option value="0.25" selected>Recepción Carga Pallet suelto (0,25 UF por pallet)</option>
+            <option value="0.007256">Recepción modo unitario (0,007256 UF por artículo)</option>
+            <option value="0.099">Pallet In - Paletizado (0,099 UF por pallet)</option>
+          </select>
+          <div class="inline-2">
+            <label>
+              <span id="b2bCantidadIngresoLabel">Cantidad por ingreso</span>
+              <input id="b2bCantidadIngreso" type="number" step="1" min="1" value="1" />
+            </label>
+            <label>
+              Veces que ingresa en el mes
+              <input id="b2bVecesIngreso" type="number" step="1" min="1" value="1" />
+            </label>
+          </div>
+          <small><strong>Adicionales opcionales</strong> (solo si mezclas tipos en el mismo ingreso):</small>
+          <div class="inline-2">
+            <label>
+              Pallet suelto adicional (cantidad)
+              <input id="b2bExtraPalletSuelto" type="number" step="1" min="0" value="0" />
+            </label>
+            <label>
+              Bultos sueltos adicionales (cantidad)
+              <input id="b2bExtraBultosSuelto" type="number" step="1" min="0" value="0" />
+            </label>
+          </div>
+          <div class="inline-2">
+            <label>
+              Carga sobredimensionada adicional (toneladas)
+              <input id="b2bExtraTonSobredim" type="number" step="0.01" min="0" value="0" />
+            </label>
+            <label>
+              Modo unitario adicional (artículos)
+              <input id="b2bExtraArticulosUnitario" type="number" step="1" min="0" value="0" />
+            </label>
+          </div>
+          <small>Siempre se suma Servicio de Recepción: <strong>0,32 UF por ingreso</strong>.</small>
+        </fieldset>
+
+        <label>
+          Posiciones pallet promedio en bodega (mes)
+          <input id="b2bPosicionesPallet" type="number" step="1" min="0" value="2" />
+        </label>
+
+        <label>
+          3) Precio venta unitario por rollo B2B BRUTO (CLP, con IVA)
+          <div class="currency-field">
+            <span>$</span>
+            <input id="b2bPrecioBruto" type="text" inputmode="numeric" value="4.760" />
+          </div>
+        </label>
+
+        <label>
+          4) % costo canal / marketplace sobre ingreso BRUTO
+          <div class="percent-field">
+            <input id="b2bComisionCanal" type="number" step="0.01" value="0" />
+            <span>%</span>
+          </div>
+        </label>
+
+        <label>
+          5) % publicidad Ads/RRSS sobre ingreso BRUTO total
+          <div class="percent-field">
+            <input id="b2bPublicidad" type="number" step="0.01" value="0" />
+            <span>%</span>
+          </div>
+        </label>
+
+        <label>
+          6) Costo de envío BRUTO unitario (CLP / rollo)
+          <div class="currency-field">
+            <span>$</span>
+            <input id="b2bEnvio" type="text" inputmode="numeric" value="325" />
+          </div>
+          <div class="checkline">
+            <input id="b2bEnvioPagaCliente" type="checkbox" checked />
+            <span>El envío lo paga el cliente (no descontar costo de envío)</span>
+          </div>
+        </label>
+
+        <label>
+          7) Precio de compra BRUTO unitario (CLP / rollo)
+          <div class="currency-field">
+            <span>$</span>
+            <input id="b2bCompra" type="text" inputmode="numeric" value="0" />
+          </div>
+        </label>
+      </div>
+
+      <button id="calcB2B" class="btn">Calcular B2B</button>
+
+      <div id="outB2B" class="results"></div>
+    </section>
+  </main>
+
+  <div id="calcModal" class="calc-modal" aria-live="polite" aria-hidden="true">
+    <div class="calc-modal-card">
+      <div class="spinner"></div>
+      <p id="calcModalText">Calculando...</p>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
