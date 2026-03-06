@@ -210,138 +210,113 @@ function collectRowsForPdf(outId) {
   return rows;
 }
 
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = src;
-    s.async = true;
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
+function xmlEscape(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-async function ensureHtml2Canvas() {
-  if (window.html2canvas) return true;
-  const sources = [
-    "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js",
-    "https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"
-  ];
-  for (const src of sources) {
-    try {
-      await loadScript(src);
-      if (window.html2canvas) return true;
-    } catch (_e) {
-      // try next source
+function wrapLine(text, max = 80) {
+  const words = String(text).split(/\s+/);
+  const out = [];
+  let cur = "";
+  for (const w of words) {
+    if ((cur + " " + w).trim().length > max) {
+      if (cur) out.push(cur.trim());
+      cur = w;
+    } else {
+      cur = `${cur} ${w}`;
     }
   }
-  return false;
+  if (cur.trim()) out.push(cur.trim());
+  return out;
 }
 
-function downloadPdfFallback(type) {
-  const { jsPDF } = window.jspdf || {};
-  if (!jsPDF) return;
-
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const margin = 40;
-  let y = margin;
-  const title = type === "b2c" ? "Reporte B2C" : "Reporte B2B";
+function buildPdfLines(type) {
   const outId = type === "b2c" ? "outB2C" : "outB2B";
+  const title = type === "b2c" ? "Reporte B2C" : "Reporte B2B";
+  const header = [
+    `VPM x LogisticPlus - ${title}`,
+    `Generado: ${new Date().toLocaleString("es-CL")}`,
+    ""
+  ];
+  const inputLines = ["Inputs"].concat(
+    collectInputsForPdf(type).flatMap((r) => wrapLine(`• ${r.label}: ${r.value}`))
+  );
+  const resultLines = ["", "Resultados"].concat(
+    collectRowsForPdf(outId).flatMap((r) => wrapLine(`• ${r}`))
+  );
+  return header.concat(inputLines).concat(resultLines);
+}
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(`VPM x LogisticPlus - ${title}`, margin, y);
-  y += 20;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text(`Generado: ${new Date().toLocaleString("es-CL")}`, margin, y);
-  y += 16;
+function renderSvgPage(lines, pageIndex, totalPages) {
+  const width = 595;
+  const height = 842;
+  const margin = 34;
+  const lineH = 14;
+  let y = margin;
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Inputs", margin, y);
-  y += 14;
-  doc.setFont("helvetica", "normal");
-  for (const row of collectInputsForPdf(type).map((r) => `${r.label}: ${r.value}`)) {
-    const chunks = doc.splitTextToSize(row, pageW - margin * 2);
-    for (const c of chunks) {
-      if (y > pageH - margin) { doc.addPage(); y = margin; }
-      doc.text(c, margin, y);
-      y += 12;
-    }
-  }
+  const textNodes = lines.map((line, i) => {
+    const w = line === "Inputs" || line === "Resultados" ? "700" : "500";
+    const size = line === "Inputs" || line === "Resultados" ? "12" : (i < 2 ? "11" : "10");
+    const fill = i === 0 ? "#0f4c81" : "#1e293b";
+    const node = `<text x="${margin}" y="${y}" font-family="Helvetica, Arial, sans-serif" font-size="${size}" font-weight="${w}" fill="${fill}">${xmlEscape(line)}</text>`;
+    y += lineH;
+    return node;
+  }).join("");
 
-  y += 8;
-  doc.setFont("helvetica", "bold");
-  doc.text("Resultados", margin, y);
-  y += 14;
-  doc.setFont("helvetica", "normal");
-  for (const row of collectRowsForPdf(outId)) {
-    const chunks = doc.splitTextToSize(row, pageW - margin * 2);
-    for (const c of chunks) {
-      if (y > pageH - margin) { doc.addPage(); y = margin; }
-      doc.text(c, margin, y);
-      y += 12;
-    }
-  }
-  doc.save(`reporte-${type}-vpm-logisticplus.pdf`);
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>
+  <rect x="${margin - 10}" y="${margin - 18}" width="${width - (margin - 10) * 2}" height="${height - (margin - 18) * 2}" rx="14" fill="#f8fbff" stroke="#d6e2f0"/>
+  ${textNodes}
+  <text x="${width - margin}" y="${height - 18}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#64748b">Página ${pageIndex + 1} de ${totalPages}</text>
+</svg>`;
 }
 
 async function downloadPdf(type) {
   const { jsPDF } = window.jspdf || {};
-  if (!jsPDF) return;
+  const svg2pdfFn = typeof window.svg2pdf === "function" ? window.svg2pdf : window.svg2pdf?.svg2pdf;
+  if (!jsPDF || !svg2pdfFn) {
+    return;
+  }
 
   showCalcModal();
-  $("calcModalText").textContent = "Generando PDF...";
+  $("calcModalText").textContent = "Generando PDF vectorial...";
 
   try {
-    const hasH2c = await ensureHtml2Canvas();
-    if (!hasH2c) throw new Error("html2canvas no disponible");
-
     if (type === "b2c") renderB2C();
     else renderB2B();
 
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-    const sectionId = type === "b2c" ? "secB2C" : "secB2B";
-    const section = $(sectionId);
-    if (!section) throw new Error("Sección no encontrada");
-
-    const canvas = await window.html2canvas(section, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      scrollY: -window.scrollY
-    });
-
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 18;
-    const imgW = pageW - margin * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    const contentHPerPage = pageH - margin * 2;
-
-    let heightLeft = imgH;
-    let position = margin;
-    pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
-    heightLeft -= contentHPerPage;
-
-    while (heightLeft > 0) {
-      pdf.addPage();
-      position = margin - (imgH - heightLeft);
-      pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
-      heightLeft -= contentHPerPage;
+    const allLines = buildPdfLines(type);
+    const linesPerPage = 48;
+    const chunks = [];
+    for (let i = 0; i < allLines.length; i += linesPerPage) {
+      chunks.push(allLines.slice(i, i + linesPerPage));
     }
 
-    pdf.save(`reporte-${type}-vpm-logisticplus.pdf`);
+    const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+    for (let i = 0; i < chunks.length; i++) {
+      if (i > 0) doc.addPage();
+      const svgMarkup = renderSvgPage(chunks[i], i, chunks.length);
+      const wrap = document.createElement("div");
+      wrap.innerHTML = svgMarkup.trim();
+      const svgEl = wrap.firstElementChild;
+      await svg2pdfFn(svgEl, doc, {
+        xOffset: 0,
+        yOffset: 0,
+        scale: 1,
+        removeInvalid: true
+      });
+    }
+
+    doc.save(`reporte-${type}-vpm-logisticplus.pdf`);
     $("calcModalText").textContent = "Listo";
-  } catch (e) {
-    downloadPdfFallback(type);
-    $("calcModalText").textContent = "Listo (modo respaldo)";
+  } catch (_e) {
+    $("calcModalText").textContent = "No se pudo generar el PDF";
   } finally {
     setTimeout(() => {
       const modal = $("calcModal");
