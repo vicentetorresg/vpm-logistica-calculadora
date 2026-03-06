@@ -168,46 +168,69 @@ function updateIngresoContext(prefix) {
   if (Number(input.value) < 1) input.value = "1";
 }
 
-function collectInputsForPdf(type) {
-  const ids = type === "b2c"
-    ? [
-      "ufValue", "rollosPorCaja", "b2cPeriodo", "b2cVentaRollos", "b2cIngresoTipo", "b2cCantidadIngreso",
-      "b2cVecesIngreso", "b2cExtraPalletSuelto", "b2cExtraBultosSuelto", "b2cExtraTonSobredim",
-      "b2cExtraArticulosUnitario", "b2cPosicionesPallet", "b2cPickupVecesMes", "b2cPrecioBruto",
-      "b2cComisionMeli", "b2cPublicidad", "b2cEnvio", "b2cEnvioPagaCliente", "b2cCompra"
-    ]
-    : [
-      "ufValue", "rollosPorCaja", "b2bCajasPedido", "b2bPedidosMes", "b2bIngresoTipo", "b2bCantidadIngreso",
-      "b2bVecesIngreso", "b2bExtraPalletSuelto", "b2bExtraBultosSuelto", "b2bExtraTonSobredim",
-      "b2bExtraArticulosUnitario", "b2bPosicionesPallet", "b2bPrecioBruto", "b2bComisionCanal",
-      "b2bPublicidad", "b2bEnvio", "b2bEnvioPagaCliente", "b2bCompra"
-    ];
-
-  return ids.map((id) => {
-    const el = $(id);
-    if (!el) return null;
-    const labelEl = el.closest("label");
-    let label = id;
-    if (labelEl) {
-      const text = labelEl.textContent.replace(/\s+/g, " ").trim();
-      label = text.replace(/\$|%/g, "").trim();
-    }
-    let value = "";
-    if (el.tagName === "SELECT") value = el.options[el.selectedIndex]?.text || "";
-    else if (el.type === "checkbox") value = el.checked ? "Sí" : "No";
-    else value = el.value;
-    return { label, value };
-  }).filter(Boolean);
-}
-
 function collectRowsForPdf(outId) {
   const out = $(outId);
-  const rows = [];
-  out.querySelectorAll("table.breakdown tr").forEach((tr) => {
-    const cols = [...tr.querySelectorAll("th,td")].map((c) => c.textContent.replace(/\s+/g, " ").trim());
-    if (cols.length > 0) rows.push(cols.join(" | "));
-  });
-  return rows;
+  const table = out.querySelector("table.breakdown");
+  if (!table) return { headers: [], rows: [] };
+  const headers = [...table.querySelectorAll("thead th")].map((th) => th.textContent.replace(/\s+/g, " ").trim());
+  const rows = [...table.querySelectorAll("tbody tr")].map((tr) =>
+    [...tr.querySelectorAll("td")].map((td) => td.textContent.replace(/\s+/g, " ").trim())
+  );
+  return { headers, rows };
+}
+
+function collectKpisForPdf(outId) {
+  const out = $(outId);
+  return [...out.querySelectorAll(".kpi")].map((kpi) => ({
+    title: kpi.querySelector("h4")?.textContent?.replace(/\s+/g, " ").trim() || "",
+    value: kpi.querySelector("p")?.textContent?.replace(/\s+/g, " ").trim() || ""
+  })).filter((k) => k.title && k.value);
+}
+
+function collectScenarioCardsForPdf(outId) {
+  const out = $(outId);
+  return [...out.querySelectorAll(".scenario-card")].map((card) => {
+    const title = card.querySelector("h5")?.textContent?.replace(/\s+/g, " ").trim() || "";
+    const lines = [...card.querySelectorAll("p")].map((p) => ({
+      k: p.querySelector("span")?.textContent?.replace(/\s+/g, " ").trim() || "",
+      v: p.querySelector("strong")?.textContent?.replace(/\s+/g, " ").trim() || ""
+    })).filter((x) => x.k && x.v);
+    return { title, lines };
+  }).filter((c) => c.title);
+}
+
+function buildPdfAssumptions(type) {
+  if (type === "b2c") {
+    const ingresoTipo = $("b2cIngresoTipo").selectedOptions?.[0]?.textContent?.trim() || "";
+    return [
+      { k: "UF referencia", v: money(n("ufValue")) },
+      { k: "Período", v: $("b2cPeriodo").selectedOptions?.[0]?.textContent?.trim() || "" },
+      { k: "Venta mensual", v: `${CLP.format(Math.max(0, n("b2cVentaRollos")))} rollos` },
+      { k: "Ingreso", v: `${ingresoTipo} x ${CLP.format(Math.max(1, n("b2cCantidadIngreso")))}` },
+      { k: "Veces ingreso/mes", v: CLP.format(Math.max(1, n("b2cVecesIngreso"))) },
+      { k: "Precio venta bruto", v: money(Math.max(0, n("b2cPrecioBruto"))) },
+      { k: "Comisión Meli", v: pct(Math.max(0, n("b2cComisionMeli"))) },
+      { k: "Publicidad", v: pct(Math.max(0, n("b2cPublicidad"))) },
+      { k: "Envío bruto unitario", v: $("b2cEnvioPagaCliente").checked ? `${money(Math.max(0, n("b2cEnvio")))} (lo paga cliente)` : money(Math.max(0, n("b2cEnvio"))) },
+      { k: "Compra bruto unitario", v: money(Math.max(0, n("b2cCompra"))) }
+    ];
+  }
+
+  const ingresoTipo = $("b2bIngresoTipo").selectedOptions?.[0]?.textContent?.trim() || "";
+  const cajasPedido = Math.max(1, n("b2bCajasPedido"));
+  const pedidosMes = Math.max(1, n("b2bPedidosMes"));
+  return [
+    { k: "UF referencia", v: money(n("ufValue")) },
+    { k: "Pedido tipo", v: `${CLP.format(cajasPedido)} cajas` },
+    { k: "Pedidos mensuales", v: CLP.format(pedidosMes) },
+    { k: "Ingreso", v: `${ingresoTipo} x ${CLP.format(Math.max(1, n("b2bCantidadIngreso")))}` },
+    { k: "Veces ingreso/mes", v: CLP.format(Math.max(1, n("b2bVecesIngreso"))) },
+    { k: "Precio venta bruto", v: money(Math.max(0, n("b2bPrecioBruto"))) },
+    { k: "Costo canal", v: pct(Math.max(0, n("b2bComisionCanal"))) },
+    { k: "Publicidad", v: pct(Math.max(0, n("b2bPublicidad"))) },
+    { k: "Envío bruto unitario", v: $("b2bEnvioPagaCliente").checked ? `${money(Math.max(0, n("b2bEnvio")))} (lo paga cliente)` : money(Math.max(0, n("b2bEnvio"))) },
+    { k: "Compra bruto unitario", v: money(Math.max(0, n("b2bCompra"))) }
+  ];
 }
 
 function xmlEscape(s) {
@@ -235,44 +258,114 @@ function wrapLine(text, max = 80) {
   return out;
 }
 
-function buildPdfLines(type) {
-  const outId = type === "b2c" ? "outB2C" : "outB2B";
-  const title = type === "b2c" ? "Reporte B2C" : "Reporte B2B";
-  const header = [
-    `VPM x LogisticPlus - ${title}`,
-    `Generado: ${new Date().toLocaleString("es-CL")}`,
-    ""
-  ];
-  const inputLines = ["Inputs"].concat(
-    collectInputsForPdf(type).flatMap((r) => wrapLine(`• ${r.label}: ${r.value}`))
-  );
-  const resultLines = ["", "Resultados"].concat(
-    collectRowsForPdf(outId).flatMap((r) => wrapLine(`• ${r}`))
-  );
-  return header.concat(inputLines).concat(resultLines);
-}
-
-function renderSvgPage(lines, pageIndex, totalPages) {
+function renderSvgPageOne(model, pageIndex, totalPages) {
   const width = 595;
   const height = 842;
-  const margin = 34;
-  const lineH = 14;
-  let y = margin;
+  const margin = 28;
+  const cards = [];
+  let y = 154;
+  const colW = (width - margin * 2 - 12) / 2;
+  const rowH = 54;
 
-  const textNodes = lines.map((line, i) => {
-    const w = line === "Inputs" || line === "Resultados" ? "700" : "500";
-    const size = line === "Inputs" || line === "Resultados" ? "12" : (i < 2 ? "11" : "10");
-    const fill = i === 0 ? "#0f4c81" : "#1e293b";
-    const node = `<text x="${margin}" y="${y}" font-family="Helvetica, Arial, sans-serif" font-size="${size}" font-weight="${w}" fill="${fill}">${xmlEscape(line)}</text>`;
-    y += lineH;
-    return node;
+  model.assumptions.forEach((item, idx) => {
+    const col = idx % 2;
+    const row = Math.floor(idx / 2);
+    const x = margin + (col * (colW + 12));
+    const yy = y + (row * (rowH + 8));
+    cards.push(`<rect x="${x}" y="${yy}" width="${colW}" height="${rowH}" rx="10" fill="#ffffff" stroke="#d6e2f0"/>`);
+    cards.push(`<text x="${x + 10}" y="${yy + 19}" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="700" fill="#1f4f82">${xmlEscape(item.k)}</text>`);
+    wrapLine(item.v, 36).slice(0, 2).forEach((line, li) => {
+      cards.push(`<text x="${x + 10}" y="${yy + 36 + (li * 12)}" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#0f172a">${xmlEscape(line)}</text>`);
+    });
+  });
+
+  const kpiY = y + (Math.ceil(model.assumptions.length / 2) * (rowH + 8)) + 12;
+  const kpiW = (width - margin * 2 - 16) / 3;
+  const kpi = model.kpis.slice(0, 3).map((item, i) => {
+    const x = margin + i * (kpiW + 8);
+    return `
+      <rect x="${x}" y="${kpiY}" width="${kpiW}" height="88" rx="12" fill="#0f4c81"/>
+      <text x="${x + 12}" y="${kpiY + 22}" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="700" fill="#d9ebff">${xmlEscape(item.title)}</text>
+      <text x="${x + 12}" y="${kpiY + 56}" font-family="Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#ffffff">${xmlEscape(item.value)}</text>
+    `;
   }).join("");
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>
-  <rect x="${margin - 10}" y="${margin - 18}" width="${width - (margin - 10) * 2}" height="${height - (margin - 18) * 2}" rx="14" fill="#f8fbff" stroke="#d6e2f0"/>
-  ${textNodes}
+  <rect x="0" y="0" width="${width}" height="${height}" fill="#f5f7fb"/>
+  <rect x="${margin}" y="${margin}" width="${width - margin * 2}" height="${height - margin * 2}" rx="16" fill="#ffffff" stroke="#d6e2f0"/>
+  <rect x="${margin}" y="${margin}" width="${width - margin * 2}" height="94" rx="16" fill="#0f4c81"/>
+  <text x="${margin + 18}" y="${margin + 30}" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#d9ebff">VPM Comercial x LogisticPlus</text>
+  <text x="${margin + 18}" y="${margin + 58}" font-family="Helvetica, Arial, sans-serif" font-size="27" font-weight="700" fill="#ffffff">${xmlEscape(model.title)}</text>
+  <text x="${margin + 18}" y="${margin + 78}" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#d9ebff">Generado: ${xmlEscape(model.generatedAt)}</text>
+  <text x="${margin + 18}" y="136" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0f4c81">Supuestos de cálculo</text>
+  ${cards.join("")}
+  <text x="${margin + 18}" y="${(kpiY - 8)}" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0f4c81">KPIs principales</text>
+  ${kpi}
+  <text x="${width - margin}" y="${height - 18}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#64748b">Página ${pageIndex + 1} de ${totalPages}</text>
+</svg>`;
+}
+
+function renderTableRows(headers, rows) {
+  const maxCols = Math.max(headers.length, ...rows.map((r) => r.length));
+  const colX = maxCols <= 2 ? [28, 330] : [28, 250, 408];
+  const colW = maxCols <= 2 ? [292, 237] : [220, 145, 145];
+  const lines = [];
+  let y = 196;
+
+  lines.push(`<rect x="28" y="164" width="539" height="28" rx="8" fill="#0f4c81"/>`);
+  headers.forEach((h, i) => {
+    lines.push(`<text x="${colX[i] + 10}" y="182" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff">${xmlEscape(h || "")}</text>`);
+  });
+
+  rows.forEach((row, idx) => {
+    const colLines = row.map((cell, ci) => wrapLine(cell || "", ci === 0 ? (maxCols <= 2 ? 52 : 40) : 24));
+    const maxLines = Math.max(1, ...colLines.map((l) => l.length));
+    const rowH = 10 + (maxLines * 12);
+    const bg = idx % 2 === 0 ? "#f8fbff" : "#ffffff";
+    lines.push(`<rect x="28" y="${y}" width="539" height="${rowH}" fill="${bg}" stroke="#e4ebf4"/>`);
+    colLines.forEach((arr, ci) => {
+      arr.forEach((line, li) => {
+        lines.push(`<text x="${colX[ci] + 10}" y="${y + 15 + li * 12}" font-family="Helvetica, Arial, sans-serif" font-size="9.6" fill="#0f172a">${xmlEscape(line)}</text>`);
+      });
+    });
+    y += rowH;
+  });
+  return { lines, finalY: y };
+}
+
+function renderSvgPageTwo(model, pageIndex, totalPages) {
+  const width = 595;
+  const height = 842;
+  const margin = 28;
+  const table = renderTableRows(model.table.headers, model.table.rows);
+
+  const cardW = model.scenarios.length > 1 ? 262 : 539;
+  const gap = model.scenarios.length > 1 ? 15 : 0;
+  const scenarioY = Math.min(690, table.finalY + 16);
+  const scenarioNodes = model.scenarios.map((sc, i) => {
+    const x = 28 + i * (cardW + gap);
+    const body = sc.lines.map((line, li) =>
+      `<text x="${x + 12}" y="${scenarioY + 38 + li * 16}" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#0f172a">${xmlEscape(`${line.k}: ${line.v}`)}</text>`
+    ).join("");
+    return `
+      <rect x="${x}" y="${scenarioY}" width="${cardW}" height="120" rx="12" fill="#ffffff" stroke="#d6e2f0"/>
+      <text x="${x + 12}" y="${scenarioY + 20}" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#0f4c81">${xmlEscape(sc.title)}</text>
+      ${body}
+    `;
+  }).join("");
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 595 842">
+  <rect x="0" y="0" width="${width}" height="${height}" fill="#f5f7fb"/>
+  <rect x="${margin}" y="${margin}" width="${width - margin * 2}" height="${height - margin * 2}" rx="16" fill="#ffffff" stroke="#d6e2f0"/>
+  <rect x="${margin}" y="${margin}" width="${width - margin * 2}" height="86" rx="16" fill="#0f4c81"/>
+  <text x="${margin + 18}" y="${margin + 30}" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#d9ebff">VPM Comercial x LogisticPlus</text>
+  <text x="${margin + 18}" y="${margin + 57}" font-family="Helvetica, Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff">${xmlEscape(model.title)}</text>
+  <text x="${margin + 18}" y="${margin + 76}" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#d9ebff">Detalle financiero mensual</text>
+  <text x="28" y="146" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#0f4c81">Desglose completo</text>
+  ${table.lines.join("")}
+  ${scenarioNodes}
   <text x="${width - margin}" y="${height - 18}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#64748b">Página ${pageIndex + 1} de ${totalPages}</text>
 </svg>`;
 }
@@ -291,17 +384,24 @@ async function downloadPdf(type) {
     if (type === "b2c") renderB2C();
     else renderB2B();
 
-    const allLines = buildPdfLines(type);
-    const linesPerPage = 48;
-    const chunks = [];
-    for (let i = 0; i < allLines.length; i += linesPerPage) {
-      chunks.push(allLines.slice(i, i + linesPerPage));
-    }
+    const outId = type === "b2c" ? "outB2C" : "outB2B";
+    const model = {
+      title: type === "b2c" ? "Reporte B2C" : "Reporte B2B",
+      generatedAt: new Date().toLocaleString("es-CL"),
+      assumptions: buildPdfAssumptions(type),
+      kpis: collectKpisForPdf(outId),
+      table: collectRowsForPdf(outId),
+      scenarios: collectScenarioCardsForPdf(outId)
+    };
+    const svgs = [
+      renderSvgPageOne(model, 0, 2),
+      renderSvgPageTwo(model, 1, 2)
+    ];
 
     const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-    for (let i = 0; i < chunks.length; i++) {
+    for (let i = 0; i < svgs.length; i++) {
       if (i > 0) doc.addPage();
-      const svgMarkup = renderSvgPage(chunks[i], i, chunks.length);
+      const svgMarkup = svgs[i];
       const wrap = document.createElement("div");
       wrap.innerHTML = svgMarkup.trim();
       const svgEl = wrap.firstElementChild;
