@@ -374,6 +374,32 @@ input:focus, select:focus {
   border-color: #cfbdf2;
 }
 
+.btn.pdf-cta {
+  position: relative;
+  min-width: 220px;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  border-width: 2px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  border-color: #fb923c;
+  color: #9a3412;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.25);
+}
+
+.btn.pdf-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(249, 115, 22, 0.32);
+}
+
+.b2b .btn.pdf-cta {
+  background: linear-gradient(135deg, #f3e8ff, #ede9fe);
+  border-color: #a78bfa;
+  color: #4c1d95;
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.22);
+}
+
 .results {
   margin-top: 12px;
   border: 1px dashed #bfd0e2;
